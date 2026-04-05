@@ -1,0 +1,150 @@
+---
+title: "SynthDiD.jl: Paper Results"
+format:
+  html:
+    code-fold: false
+    toc: true
+    self-contained: true
+jupyter: julia-1.12
+execute:
+  cache: false
+---
+
+## Overview
+
+This vignette generates results comparable to those in Arkhangelsky et al. (2021),
+including the California Proposition 99 application and placebo simulations.
+
+## Setup
+
+```{julia}
+using SynthDiD
+using Plots
+using DataFrames
+using Statistics
+using Random
+using Printf
+Random.seed!(12345)
+```
+
+## California Proposition 99 Application
+
+### Load Data and Estimate
+
+```{julia}
+df = california_prop99()
+setup = panel_matrices(df, :State, :Year, :PacksPerCapita, :treated)
+years = collect(setup.times)
+
+τ_sdid = synthdid_estimate(setup.Y, setup.N0, setup.T0;
+                           units=setup.units, times=years)
+τ_sc   = sc_estimate(setup.Y, setup.N0, setup.T0;
+                     units=setup.units, times=years)
+τ_did  = did_estimate(setup.Y, setup.N0, setup.T0;
+                      units=setup.units, times=years)
+
+estimates = [τ_did, τ_sc, τ_sdid]
+est_names = ["DiD", "SC", "SDiD"]
+```
+
+### Point Estimates and Standard Errors
+
+```{julia}
+point_est = [e.estimate for e in estimates]
+
+Random.seed!(12345)
+se_placebo = [se(e; method=:placebo, replications=200) for e in estimates]
+
+println("\n" * "=" ^ 60)
+@printf("%-20s %12s %12s\n", "Estimator", "τ̂", "Placebo SE")
+println("=" ^ 60)
+for (name, est, se_val) in zip(est_names, point_est, se_placebo)
+    @printf("%-20s %12.2f %12.2f\n", name, est, se_val)
+end
+println("=" ^ 60)
+```
+
+### Figure 1: Parallel Trends Plot
+
+```{julia}
+#| fig-width: 12
+#| fig-height: 4
+plot(estimates; size=(1000, 350))
+```
+
+### Unit Weights
+
+```{julia}
+unit_weights = synthdid_controls(estimates; weight_type="omega", mass=0.95)
+println("\nTop Unit Weights (ω):")
+println(unit_weights)
+```
+
+### Time Weights
+
+```{julia}
+time_weights = synthdid_controls(estimates; weight_type="lambda", mass=0.95)
+println("\nTime Weights (λ):")
+println(time_weights)
+```
+
+## Placebo Simulations
+
+### Simulation Setup
+
+We run a simple placebo simulation to demonstrate the method:
+
+```{julia}
+function run_placebo_sims(Y, N0, T0; n_sims=100)
+    N1 = size(Y, 1) - N0
+    estimates = Float64[]
+
+    for sim in 1:n_sims
+        ind = rand(1:N0, N0)
+        n0_new = length(ind) - N1
+        if n0_new < 1; continue; end
+
+        try
+            est = synthdid_estimate(Y[ind, :], n0_new, T0)
+            push!(estimates, est.estimate)
+        catch
+            continue
+        end
+    end
+    return estimates
+end
+
+Random.seed!(12345)
+placebo_est = run_placebo_sims(setup.Y, setup.N0, setup.T0; n_sims=100)
+
+println("\nPlacebo Simulation Results:")
+println("─" ^ 40)
+@printf("Mean:     %1.2f\n", mean(placebo_est))
+@printf("Std:      %1.2f\n", std(placebo_est))
+@printf("RMSE:     %1.2f\n", sqrt(mean(placebo_est .^ 2)))
+```
+
+### Error Distribution Plot
+
+```{julia}
+#| fig-width: 8
+#| fig-height: 4
+histogram(placebo_est; bins=20,
+         label="Placebo estimates",
+         xlabel="Estimated treatment effect",
+         ylabel="Frequency",
+         title="Placebo Simulation (100 replications)",
+         color=:steelblue, alpha=0.7)
+vline!([τ_sdid.estimate]; label="SDiD estimate", color=:firebrick, linewidth=2)
+```
+
+## Summary
+
+The SDiD estimator (-15.60) yields a more conservative estimate than SC (-19.62)
+and much smaller than DiD (-27.35), reflecting the efficiency gain from optimizing
+both unit and time weights.
+
+## Reference
+
+Arkhangelsky, D., Athey, S., Hirshberg, D. A., Imbens, G. W., & Wager, S. (2021).
+Synthetic Difference-in-Differences. *American Economic Review*, 111(12), 4088-4118.

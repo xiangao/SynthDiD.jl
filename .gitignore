@@ -1,0 +1,13 @@
+# Julia
+Manifest.toml
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+.julia/
+
+# Rendered outputs (large HTML files)
+output/
+vignettes/*.html
+
+# OS
+.DS_Store

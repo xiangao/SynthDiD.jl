@@ -1,0 +1,259 @@
+---
+title: "SynthDiD.jl Introduction"
+format:
+  html:
+    code-fold: false
+    toc: true
+    self-contained: true
+jupyter: julia-1.12
+execute:
+  cache: false
+---
+
+## Overview
+
+SynthDiD.jl is a Julia implementation of the Synthetic Difference-in-Differences
+estimator proposed by Arkhangelsky, Athey, Hirshberg, Imbens & Wager (2021).
+It implements three estimators:
+
+- **Synthetic Diff-in-Diff (SDiD)**: Optimizes both unit weights $\omega$ and time weights $\lambda$
+- **Synthetic Control (SC)**: Optimizes unit weights $\omega$ only, with $\lambda = 0$
+- **Diff-in-Diff (DiD)**: Uses uniform weights $\omega = 1/N_0$, $\lambda = 1/T_0$
+
+## Setup
+
+```{julia}
+using SynthDiD
+using Plots
+using DataFrames
+using Random
+using Printf
+Random.seed!(12345)
+```
+
+## California Proposition 99
+
+We estimate the effect of California Proposition 99 (a 1988 tobacco tax) on
+per-capita cigarette consumption.
+
+```{julia}
+df = california_prop99()
+first(df, 5)
+```
+
+Convert the long panel to matrix format:
+
+```{julia}
+setup = panel_matrices(df, :State, :Year, :PacksPerCapita, :treated)
+years = collect(setup.times)
+println("Y: $(size(setup.Y)),  N₀ = $(setup.N0),  T₀ = $(setup.T0)")
+```
+
+## Point Estimates
+
+```{julia}
+τ_sdid = synthdid_estimate(setup.Y, setup.N0, setup.T0;
+                           units=setup.units, times=years)
+τ_sc   = sc_estimate(setup.Y, setup.N0, setup.T0;
+                     units=setup.units, times=years)
+τ_did  = did_estimate(setup.Y, setup.N0, setup.T0;
+                      units=setup.units, times=years)
+
+println(τ_sdid)
+println(τ_sc)
+println(τ_did)
+```
+
+### Comparing estimates
+
+```{julia}
+println("─" ^ 50)
+@printf("%-30s %10s\n", "Estimator", "τ̂")
+println("─" ^ 50)
+for (name, est) in [("Diff-in-Diff", τ_did), ("Synthetic Control", τ_sc), ("Synthetic Diff-in-Diff", τ_sdid)]
+    @printf("%-30s %10.2f\n", name, est.estimate)
+end
+println("─" ^ 50)
+```
+
+## Standard Errors
+
+We have only one treated unit (California), so the only applicable variance
+estimation method is the **placebo** method (Algorithm 4 of Arkhangelsky et al.).
+Bootstrap and jackknife require multiple treated units.
+
+```{julia}
+Random.seed!(12345)
+se_val = se(τ_sdid; method=:placebo, replications=200)
+@printf("Point estimate: %1.2f\n", τ_sdid.estimate)
+@printf("Placebo SE:     %1.2f\n", se_val)
+@printf("95%% CI:         (%1.2f, %1.2f)\n",
+        τ_sdid.estimate - 1.96 * se_val,
+        τ_sdid.estimate + 1.96 * se_val)
+```
+
+## Parallel Trends Plot
+
+The built-in plot recipe shows treated vs. synthetic control trajectories,
+with a vertical line at treatment onset and time weight bars below.
+
+```{julia}
+#| fig-width: 7
+#| fig-height: 5
+plot(τ_sdid)
+```
+
+## Comparing All Three Estimators
+
+Pass a vector of estimates to get a side-by-side comparison:
+
+```{julia}
+#| fig-width: 12
+#| fig-height: 4
+plot([τ_did, τ_sc, τ_sdid])
+```
+
+## Customized Parallel Trends
+
+We can also build custom plots using the package's accessors.
+This replicates the style of Figure 1 in Arkhangelsky et al.
+
+```{julia}
+#| fig-width: 10
+#| fig-height: 5
+
+Y = setup.Y
+years = setup.times
+T0 = setup.T0
+N0 = setup.N0
+
+ω_sdid = τ_sdid.weights.omega
+synth_sdid = vec(ω_sdid' * Y[1:N0, :])
+california = vec(Y[N0+1, :])
+
+p = plot(years, synth_sdid;
+    label="Synthetic Control", color=:steelblue, linewidth=2,
+    xlabel="Year", ylabel="Packs per Capita",
+    title="California vs. Synthetic Control (SDiD)",
+    legend=:topright, size=(700, 400))
+plot!(p, years, california;
+    label="California", color=:firebrick, linewidth=2)
+vline!(p, [years[T0] + 0.5]; label="", color=:gray40, linestyle=:dash)
+
+# Shade post-treatment gap
+post_yrs = years[(T0+1):end]
+plot!(p, post_yrs, synth_sdid[(T0+1):end];
+    fillrange=california[(T0+1):end], fillalpha=0.15,
+    fillcolor=:firebrick, label="", color=:transparent)
+p
+```
+
+## Effect Curve
+
+The per-period treatment effects averaged to produce the SDiD estimate:
+
+```{julia}
+#| fig-width: 8
+#| fig-height: 4
+curve = effect_curve(τ_sdid)
+post_years = years[(T0+1):end]
+
+bar(post_years, curve;
+    label="Per-period effect", color=:steelblue, alpha=0.7,
+    xlabel="Year", ylabel="Treatment Effect",
+    title="Per-Period Treatment Effect (SDiD)",
+    size=(700, 350))
+hline!([τ_sdid.estimate]; label="Average τ̂ = $(round(τ_sdid.estimate, digits=1))",
+    color=:firebrick, linestyle=:dash, linewidth=2)
+hline!([0]; label="", color=:gray50, linewidth=0.5)
+```
+
+## Weights
+
+### Unit Weights ($\omega$)
+
+The SDiD unit weights show which control states contribute most:
+
+```{julia}
+ω = τ_sdid.weights.omega
+control_names = setup.units[1:N0]
+top_idx = sortperm(ω, rev=true)[1:10]
+
+println("Top 10 Control Weights (SDiD):")
+println("─" ^ 40)
+for i in top_idx
+    @printf("  %-20s  %0.4f\n", control_names[i], ω[i])
+end
+@printf("\n  Effective N₀ = %0.1f\n", 1 / sum(ω .^ 2))
+```
+
+```{julia}
+#| fig-width: 8
+#| fig-height: 4
+# Top 15 control weights as horizontal bar chart
+top15 = sortperm(ω, rev=true)[1:15]
+bar(ω[top15], orientation=:h,
+    yticks=(1:15, string.(control_names[top15])),
+    label="", color=:steelblue, alpha=0.8,
+    xlabel="Weight ω", title="Top 15 Unit Weights (SDiD)",
+    size=(700, 400), yflip=true)
+```
+
+### Time Weights ($\lambda$)
+
+```{julia}
+#| fig-width: 8
+#| fig-height: 3.5
+λ = τ_sdid.weights.lambda
+
+bar(years[1:T0], λ;
+    label="", color=:steelblue, alpha=0.7,
+    xlabel="Year", ylabel="Weight λ",
+    title="Time Weights (SDiD)", size=(700, 300))
+vline!([years[T0] + 0.5]; label="Treatment onset", color=:firebrick, linestyle=:dash)
+```
+
+### Weight Summary Table
+
+The `synthdid_controls` function returns the top control weights across estimators:
+
+```{julia}
+synthdid_controls([τ_sdid, τ_sc, τ_did]; weight_type="omega", mass=0.9)
+```
+
+## Placebo Test
+
+We run a placebo estimate using only pre-treatment data:
+
+```{julia}
+τ_placebo = placebo(τ_sdid)
+@printf("Actual estimate:  %1.2f\n", τ_sdid.estimate)
+@printf("Placebo estimate: %1.2f\n", τ_placebo.estimate)
+```
+
+The placebo estimate should be close to zero if the parallel trends assumption
+holds in the pre-treatment period.
+
+## Method
+
+The SDiD estimator solves a weighted TWFE regression:
+
+$$
+\hat\tau^{sdid} = \arg\min_{\tau,\mu,\alpha,\beta} \sum_{i=1}^N \sum_{t=1}^T
+(Y_{it} - \mu - \alpha_i - \beta_t - W_{it}\tau)^2 \hat\omega_i \hat\lambda_t
+$$
+
+where the weights $\hat\omega$ and $\hat\lambda$ are estimated via Frank-Wolfe
+optimization on the unit simplex with ridge regularization.
+
+| Estimator | Unit weights $\omega$ | Time weights $\lambda$ | Intercept |
+|-----------|----------------------|------------------------|-----------|
+| SC        | Optimized            | $\lambda = 0$          | No        |
+| DiD       | $1/N_0$ (uniform)    | $1/T_0$ (uniform)      | Yes       |
+| SDiD      | Optimized            | Optimized              | Yes       |
+
+## Reference
+
+Arkhangelsky, D., Athey, S., Hirshberg, D. A., Imbens, G. W., & Wager, S. (2021).
+Synthetic Difference-in-Differences.
+*American Economic Review*, 111(12), 4088-4118.

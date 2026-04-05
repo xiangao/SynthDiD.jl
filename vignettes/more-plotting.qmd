@@ -1,0 +1,101 @@
+---
+title: "More on Plotting with SynthDiD.jl"
+format:
+  html:
+    code-fold: false
+    toc: true
+    self-contained: true
+jupyter: julia-1.12
+execute:
+  cache: false
+---
+
+## Setup
+
+```{julia}
+using SynthDiD
+using Plots
+using DataFrames
+using Random
+Random.seed!(12345)
+```
+
+## Using Real Time Labels
+
+The package tracks unit and time labels through `panel_matrices`. Pass them
+to the estimator via `units` and `times`:
+
+```{julia}
+df = california_prop99()
+setup = panel_matrices(df, :State, :Year, :PacksPerCapita, :treated)
+years = collect(setup.times)
+
+τ_sdid = synthdid_estimate(setup.Y, setup.N0, setup.T0;
+                           units=setup.units, times=years)
+τ_sc   = sc_estimate(setup.Y, setup.N0, setup.T0;
+                     units=setup.units, times=years)
+τ_did  = did_estimate(setup.Y, setup.N0, setup.T0;
+                      units=setup.units, times=years)
+```
+
+## Built-in Plot Recipe
+
+```{julia}
+#| fig-width: 7
+#| fig-height: 5
+plot(τ_sdid)
+```
+
+## Comparing Multiple Estimators
+
+Pass a vector of estimates to get a side-by-side comparison:
+
+```{julia}
+#| fig-width: 12
+#| fig-height: 4
+plot([τ_did, τ_sc, τ_sdid])
+```
+
+## Custom Plot Construction
+
+You can build custom plots using the package's accessors:
+
+```{julia}
+#| fig-width: 8
+#| fig-height: 4
+Y = setup.Y
+N0 = setup.N0
+T0 = setup.T0
+ω = τ_sdid.weights.omega
+
+synth = vec(ω' * Y[1:N0, :])
+california = vec(Y[N0+1, :])
+
+p = plot(years, synth;
+    label="Synthetic Control",
+    color=:steelblue, linewidth=2,
+    xlabel="Year", ylabel="Packs per Capita")
+
+plot!(p, years, california;
+    label="California",
+    color=:firebrick, linewidth=2)
+
+vline!(p, [years[T0] + 0.5];
+    label="", color=:gray40, linestyle=:dash)
+p
+```
+
+## Control Unit Weights Table
+
+The `synthdid_controls` function returns a DataFrame of the most important
+control weights:
+
+```{julia}
+ctrl = synthdid_controls([τ_sdid, τ_sc, τ_did]; mass=0.9)
+println(ctrl)
+```
+
+## Reference
+
+Arkhangelsky, D., Athey, S., Hirshberg, D. A., Imbens, G. W., & Wager, S. (2021).
+Synthetic Difference-in-Differences. *American Economic Review*, 111(12), 4088-4118.
