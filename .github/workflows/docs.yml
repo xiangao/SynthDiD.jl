@@ -38,10 +38,15 @@ jobs:
 
       - name: Stage Pages artifact
         run: |
+          shopt -s nullglob
           mkdir -p _site
           cp docs/index.html _site/index.html
-          cp vignettes/*.html _site/
-          cp -r vignettes/*_files _site/
+          html_files=(vignettes/*.html output/*.html)
+          asset_dirs=(vignettes/*_files output/*_files)
+          cp "${html_files[@]}" _site/
+          if [ ${#asset_dirs[@]} -gt 0 ]; then
+            cp -r "${asset_dirs[@]}" _site/
+          fi
 
       - uses: actions/configure-pages@v5
 
