@@ -8,6 +8,8 @@ Manifest.toml
 # Rendered outputs (large HTML files)
 output/
 vignettes/*.html
+vignettes/*_files/
+vignettes/*.quarto_ipynb
 
 # OS
 .DS_Store
