@@ -34,18 +34,16 @@ jobs:
       - name: Render vignettes
         env:
           JULIA_PROJECT: vignettes
-        run: quarto render vignettes
+        run: quarto render vignettes --output-dir ../_site
 
       - name: Stage Pages artifact
         run: |
-          shopt -s nullglob
           mkdir -p _site
           cp docs/index.html _site/index.html
-          html_files=(vignettes/*.html output/*.html)
-          asset_dirs=(vignettes/*_files output/*_files)
-          cp "${html_files[@]}" _site/
-          if [ ${#asset_dirs[@]} -gt 0 ]; then
-            cp -r "${asset_dirs[@]}" _site/
+          if [ ! -f _site/introduction.html ] || [ ! -f _site/more-plotting.html ] || [ ! -f _site/paper-results.html ]; then
+            echo "Expected rendered vignette HTML files were not found in _site/"
+            find _site -maxdepth 2 -type f | sort
+            exit 1
           fi
 
       - uses: actions/configure-pages@v5
