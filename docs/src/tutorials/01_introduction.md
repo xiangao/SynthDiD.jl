@@ -1,5 +1,9 @@
 # Introduction to SynthDiD.jl
 
+```@meta
+CurrentModule = SynthDiD
+```
+
 `SynthDiD.jl` implements three related estimators for policy evaluation with panel data:
 
 - **Synthetic Diff-in-Diff (SDiD)** optimizes both unit weights `ω` and time weights `λ`
@@ -10,7 +14,7 @@ This tutorial uses the California Proposition 99 tobacco-tax example bundled wit
 
 ## Setup
 
-```julia
+```@example intro
 using SynthDiD
 using Plots
 using DataFrames
@@ -24,14 +28,14 @@ Random.seed!(12345)
 
 Load the long-format panel and inspect the first few rows:
 
-```julia
+```@example intro
 df = california_prop99()
 first(df, 5)
 ```
 
 Convert the panel to the matrix representation expected by the estimators:
 
-```julia
+```@example intro
 setup = panel_matrices(df, :State, :Year, :PacksPerCapita, :treated)
 years = collect(setup.times)
 
@@ -42,7 +46,7 @@ println("Y: $(size(setup.Y)), N0 = $(setup.N0), T0 = $(setup.T0)")
 
 Estimate all three models on the same treated-control setup:
 
-```julia
+```@example intro
 tau_sdid = synthdid_estimate(setup.Y, setup.N0, setup.T0;
                              units=setup.units, times=years)
 tau_sc = sc_estimate(setup.Y, setup.N0, setup.T0;
@@ -57,7 +61,7 @@ println(tau_did)
 
 Compare the resulting treatment effects directly:
 
-```julia
+```@example intro
 println("-" ^ 50)
 @printf("%-30s %10s\n", "Estimator", "tau")
 println("-" ^ 50)
@@ -73,7 +77,7 @@ println("-" ^ 50)
 
 With one treated unit, placebo inference is the appropriate variance estimator:
 
-```julia
+```@example intro
 Random.seed!(12345)
 se_val = se(tau_sdid; method=:placebo, replications=200)
 
@@ -88,30 +92,42 @@ se_val = se(tau_sdid; method=:placebo, replications=200)
 
 The built-in recipe plots treated and synthetic trajectories together:
 
-```julia
-plot(tau_sdid)
+```@example intro
+p1 = plot(tau_sdid)
+savefig(p1, "intro_parallel_trends.svg")
+nothing
 ```
+
+![](intro_parallel_trends.svg)
 
 You can also compare all three estimators side by side:
 
-```julia
-plot([tau_did, tau_sc, tau_sdid])
+```@example intro
+p2 = plot([tau_did, tau_sc, tau_sdid])
+savefig(p2, "intro_compare_estimators.svg")
+nothing
 ```
+
+![](intro_compare_estimators.svg)
 
 ## Effect Curves and Weights
 
 Inspect the post-treatment effect path:
 
-```julia
+```@example intro
 curve = effect_curve(tau_sdid)
 post_years = years[(setup.T0 + 1):end]
 
-bar(post_years, curve; label="Per-period effect")
+p3 = bar(post_years, curve; label="Per-period effect")
+savefig(p3, "intro_effect_curve.svg")
+nothing
 ```
+
+![](intro_effect_curve.svg)
 
 Summarize the most influential control units:
 
-```julia
+```@example intro
 omega = tau_sdid.weights.omega
 control_names = setup.units[1:setup.N0]
 top_idx = sortperm(omega, rev=true)[1:10]

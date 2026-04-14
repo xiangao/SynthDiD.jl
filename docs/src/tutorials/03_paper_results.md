@@ -1,10 +1,14 @@
 # Paper Results
 
+```@meta
+CurrentModule = SynthDiD
+```
+
 This tutorial reproduces the package's main Proposition 99 estimates and a simple placebo exercise in the style of the original Synthetic Difference-in-Differences paper.
 
 ## Setup
 
-```julia
+```@example paper
 using SynthDiD
 using Plots
 using DataFrames
@@ -19,7 +23,7 @@ Random.seed!(12345)
 
 Estimate the three models on the bundled panel:
 
-```julia
+```@example paper
 df = california_prop99()
 setup = panel_matrices(df, :State, :Year, :PacksPerCapita, :treated)
 years = collect(setup.times)
@@ -37,7 +41,7 @@ est_names = ["DiD", "SC", "SDiD"]
 
 Summarize point estimates and placebo standard errors:
 
-```julia
+```@example paper
 point_est = [e.estimate for e in estimates]
 
 Random.seed!(12345)
@@ -54,13 +58,17 @@ println("=" ^ 60)
 
 Plot the three fitted paths together:
 
-```julia
-plot(estimates; size=(1000, 350))
+```@example paper
+p1 = plot(estimates; size=(1000, 350))
+savefig(p1, "paper_estimates.svg")
+nothing
 ```
+
+![](paper_estimates.svg)
 
 Inspect the largest control and time weights:
 
-```julia
+```@example paper
 unit_weights = synthdid_controls(estimates; weight_type="omega", mass=0.95)
 time_weights = synthdid_controls(estimates; weight_type="lambda", mass=0.95)
 
@@ -72,7 +80,7 @@ println(time_weights)
 
 A basic placebo routine can be used to summarize how noisy the estimator is under resampling from the donor pool:
 
-```julia
+```@example paper
 function run_placebo_sims(Y, N0, T0; n_sims=100)
     N1 = size(Y, 1) - N0
     estimates = Float64[]
@@ -101,14 +109,14 @@ placebo_est = run_placebo_sims(setup.Y, setup.N0, setup.T0; n_sims=100)
 
 Summarize and visualize the placebo distribution:
 
-```julia
+```@example paper
 @printf("Mean: %1.2f\n", mean(placebo_est))
 @printf("Std:  %1.2f\n", std(placebo_est))
 @printf("RMSE: %1.2f\n", sqrt(mean(placebo_est .^ 2)))
 ```
 
-```julia
-histogram(placebo_est;
+```@example paper
+p2 = histogram(placebo_est;
     bins=20,
     label="Placebo estimates",
     xlabel="Estimated treatment effect",
@@ -121,7 +129,11 @@ vline!([tau_sdid.estimate];
     label="SDiD estimate",
     color=:firebrick,
     linewidth=2)
+savefig(p2, "paper_placebo_histogram.svg")
+nothing
 ```
+
+![](paper_placebo_histogram.svg)
 
 ## Interpretation
 
