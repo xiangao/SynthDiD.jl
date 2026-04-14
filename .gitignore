@@ -10,6 +10,8 @@ output/
 vignettes/*.html
 vignettes/*_files/
 vignettes/*.quarto_ipynb
+docs/.quarto/
+docs/vignettes/
 
 # OS
 .DS_Store

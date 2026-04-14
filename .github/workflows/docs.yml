@@ -21,36 +21,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: julia-actions/setup-julia@v2
-        with:
-          version: '1.10'
-
-      - uses: quarto-dev/quarto-actions/setup@v2
-
-      - name: Install package and vignette dependencies
-        run: |
-          julia --project=vignettes -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate(); using IJulia; installkernel("julia-1.12", env=Dict("JULIA_PROJECT" => abspath("vignettes")))'
-
-      - name: Render vignettes
-        env:
-          JULIA_PROJECT: vignettes
-        run: quarto render vignettes --output-dir ../_site
-
-      - name: Stage Pages artifact
-        run: |
-          mkdir -p _site
-          cp docs/index.html _site/index.html
-          if [ ! -f _site/introduction.html ] || [ ! -f _site/more-plotting.html ] || [ ! -f _site/paper-results.html ]; then
-            echo "Expected rendered vignette HTML files were not found in _site/"
-            find _site -maxdepth 2 -type f | sort
-            exit 1
-          fi
-
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: docs
 
   deploy:
     needs: build
