@@ -89,13 +89,13 @@ where $\hat\omega$ (unit weights) and $\hat\lambda$ (time weights) are estimated
 
 ## Vignettes
 
-- [Introduction](https://xiangao.github.io/SynthDiD.jl/introduction.html) — California Prop 99 walkthrough
-- [More on Plotting](https://xiangao.github.io/SynthDiD.jl/more-plotting.html) — Plot customization and weight tables
-- [Paper Results](https://xiangao.github.io/SynthDiD.jl/paper-results.html) — Replicating paper results
+- [Introduction](https://xiangao.github.io/SynthDiD.jl/tutorials/01_introduction/) — California Prop 99 walkthrough
+- [More on Plotting](https://xiangao.github.io/SynthDiD.jl/tutorials/02_more_plotting/) — Plot customization and weight tables
+- [Paper Results](https://xiangao.github.io/SynthDiD.jl/tutorials/03_paper_results/) — Replicating paper results
 
 Full documentation: **https://xiangao.github.io/SynthDiD.jl/**
 
-Local render: `JULIA_PROJECT=vignettes quarto render vignettes`
+Local render: `julia --project=docs docs/make.jl`
 
 ## Reference
 
