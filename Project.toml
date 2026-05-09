@@ -1,6 +1,6 @@
 name = "SynthDiD"
 uuid = "6933d2b0-70b5-4b05-939b-4536f4ca9999"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Xiang Ao"]
 
 [deps]
