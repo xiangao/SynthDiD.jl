@@ -1,8 +1,9 @@
 # SynthDiD.jl
 
-Julia implementation of **Synthetic Difference-in-Differences** (Arkhangelsky, Athey, Hirshberg, Imbens & Wager, 2021).
-
-Translated from the [R synthdid package](https://github.com/synth-inference/synthdid).
+`SynthDiD.jl` is a Julia implementation of synthetic difference-in-differences
+from Arkhangelsky, Athey, Hirshberg, Imbens, and Wager (2021). It follows the
+basic interface of the R [`synthdid`](https://github.com/synth-inference/synthdid)
+package.
 
 ## Installation
 
@@ -82,7 +83,8 @@ $$\hat\tau^{sdid} = \arg\min_{\tau,\mu,\alpha,\beta} \sum_{i,t} (Y_{it} - \mu - 
 
 where $\hat\omega$ (unit weights) and $\hat\lambda$ (time weights) are estimated via Frank-Wolfe optimization on the unit simplex with ridge regularization.
 
-**Key insight**: SC, DiD, and SDiD are all special cases:
+The useful way to remember the estimator is that SC, DiD, and SDiD differ only
+in the unit and time weights:
 - **SC**: $\omega$ optimized, $\lambda = 0$, no unit intercept
 - **DiD**: $\omega = 1/N_0$ (uniform), $\lambda = 1/T_0$ (uniform)
 - **SDiD**: Both $\omega$ and $\lambda$ optimized
