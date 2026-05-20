@@ -1,13 +1,16 @@
 # SynthDiD.jl
 
-`SynthDiD.jl` is a Julia implementation of **Synthetic Difference-in-Differences** (Arkhangelsky, Athey, Hirshberg, Imbens, and Wager, 2021). It provides a compact interface for synthetic DiD, synthetic control, and standard DiD estimation from balanced panel data.
+`SynthDiD.jl` is a Julia implementation of synthetic difference-in-differences
+from Arkhangelsky, Athey, Hirshberg, Imbens, and Wager (2021). It works with
+balanced panel data and returns the synthetic DiD, synthetic control, and DiD
+estimates from the same setup.
 
-## Features
+## Main pieces
 
 - **Three estimators**: `synthdid_estimate`, `sc_estimate`, and `did_estimate`
 - **Panel reshaping utilities**: `panel_matrices` converts long data into the matrix representation used by the estimators
 - **Inference tools**: `vcov`, `se`, and placebo-based diagnostics
-- **Plotting support**: built-in plot recipes plus accessors for custom visualizations
+- **Plotting support**: plot recipes plus accessors for custom plots
 
 ## Installation
 

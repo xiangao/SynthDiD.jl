@@ -58,7 +58,8 @@ nothing
 
 ## Custom Plot Construction
 
-Because the estimate object exposes `weights` and `setup`, custom plots are easy to build:
+The estimate object exposes `weights` and `setup`, so a custom plot can be built
+from the saved pieces:
 
 ```@example plotting
 Y = setup.Y
